@@ -12,6 +12,7 @@ import android.media.session.MediaController;
 import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
 import android.net.Uri;
+import android.os.Build;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
@@ -257,8 +258,9 @@ public class EngineService extends AccessibilityService {
                 AccessibilityNodeInfo c = n;
                 while (c != null && !c.isClickable()) c = c.getParent();
                 if (c != null && c.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return b;
-                if (n.performAction(AccessibilityNodeInfo.ACTION_FOCUS)) {   // TV: focus, then press OK
-                    clickFocused(); return b;
+                AccessibilityNodeInfo f = n;
+                for (int up = 0; up < 4 && f != null; up++, f = f.getParent()) {   // TV: focus, then press OK
+                    if (f.isFocused() || f.performAction(AccessibilityNodeInfo.ACTION_FOCUS)) { sleep(1); if (pressOk()) return b; break; }
                 }
             }
         }
@@ -294,6 +296,10 @@ public class EngineService extends AccessibilityService {
                 AccessibilityNodeInfo c = n;
                 for (int up = 0; up < 6 && c != null; up++, c = c.getParent()) {
                     if (label(c).contains("sign in")) break;
+                    if (c.isFocused() || (c.isFocusable() && c.performAction(AccessibilityNodeInfo.ACTION_FOCUS))) {
+                        sleep(1);
+                        if (pressOk()) return true;
+                    }
                     if (c.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true;
                 }
             }
@@ -349,12 +355,18 @@ public class EngineService extends AccessibilityService {
         MediaController c = controller(pkg);
         if (c != null) c.getTransportControls().play(); else clickFocused();
     }
+    /** Remote "OK" button (Android 13+), the only "click" some TV apps (Twitch) react to. */
+    private boolean pressOk() {
+        if (Build.VERSION.SDK_INT >= 33) return performGlobalAction(GLOBAL_ACTION_DPAD_CENTER);
+        return false;
+    }
     private void clickFocused() {
         try {
             AccessibilityNodeInfo root = getRootInActiveWindow();
-            if (root == null) return;
-            AccessibilityNodeInfo n = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
-            if (n == null) n = root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY);
+            AccessibilityNodeInfo n = root == null ? null : root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+            if (n != null && label(n).contains("sign in")) return;
+            if (pressOk()) return;
+            if (n == null && root != null) n = root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY);
             while (n != null && !n.isClickable()) n = n.getParent();
             if (n != null && !label(n).contains("sign in")) n.performAction(AccessibilityNodeInfo.ACTION_CLICK);
         } catch (Exception ignored) { }
