@@ -98,7 +98,9 @@ public class EngineService extends AccessibilityService {
                 Logbook.line(this, "  [" + name + "] app left foreground -> relaunching");
                 launchAttempt(cfg, name, pkg, preferred(name));
             } else if (!"playing".equals(st) && clickKnownButtonLogged(name)) {
-                // dialog dismissed ("still watching?", guest prompt, retry)
+                // dialog dismissed ("still watching?", guest prompt, cookies, retry)
+            } else if (!"playing".equals(st) && !"paused".equals(st) && name.equals("Twitch") && clickStreamCard()) {
+                Logbook.line(this, "  [Twitch] not playing -> opened first live stream");
             } else if ("paused".equals(st)) {
                 pausedRun++;
                 if (pausedRun == 1) play(pkg); else clickFocused();   // 2nd time: dismiss "still watching?"
@@ -180,6 +182,7 @@ public class EngineService extends AccessibilityService {
                         sleep(4); launchAttempt(cfg, name, pkg, idx);       // guest/retry often lands on home: reopen video
                     }
                 } else if ("paused".equals(st)) play(pkg);
+                else if (name.equals("Twitch") && clickStreamCard()) Logbook.line(this, "  [Twitch] opened first live stream");
                 else if (!name.equals("YouTube")) clickFocused();   // profile picker / featured tile
             }
             Logbook.line(this, "  [" + name + "] attempt " + (idx + 1) + " not playing. Screen: " + screenText());
@@ -232,6 +235,7 @@ public class EngineService extends AccessibilityService {
     }
     /** Buttons we are happy to press when playback is blocked (lower-case, in priority order). */
     private static final String[] BUTTONS = {
+        "accept all", "accept all cookies", "accept cookies", "i accept", "accept", "i agree", "agree", "allow all", "got it",
         "watch as guest", "continue as guest", "use as guest", "guest",
         "continue watching", "keep watching", "i'm still watching", "yes",
         "try again", "retry", "skip", "not now", "no thanks", "dismiss", "close", "ok"
@@ -258,6 +262,30 @@ public class EngineService extends AccessibilityService {
             }
         }
         return null;
+    }
+    /** Twitch home: click the first tile that looks like a live stream (shows viewers / LIVE). */
+    private boolean clickStreamCard() {
+        AccessibilityNodeInfo root;
+        try { root = getRootInActiveWindow(); } catch (Exception e) { return false; }
+        if (root == null) return false;
+        java.util.List<AccessibilityNodeInfo> nodes = new java.util.ArrayList<>();
+        flatten(root, nodes, 0);
+        for (String key : new String[]{"viewer", "live"}) {
+            for (AccessibilityNodeInfo n : nodes) {
+                if (!n.isClickable()) continue;
+                String t = subtreeText(n, 0).toLowerCase(java.util.Locale.ROOT);
+                if (!t.contains(key) || t.length() > 300) continue;
+                if (n.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true;
+                if (n.performAction(AccessibilityNodeInfo.ACTION_FOCUS)) { clickFocused(); return true; }
+            }
+        }
+        return false;
+    }
+    private String subtreeText(AccessibilityNodeInfo n, int depth) {
+        if (n == null || depth > 8) return "";
+        StringBuilder sb = new StringBuilder(label(n)).append(' ');
+        for (int i = 0; i < n.getChildCount() && sb.length() < 300; i++) sb.append(subtreeText(n.getChild(i), depth + 1));
+        return sb.toString();
     }
     private boolean clickKnownButtonLogged(String name) {
         String b = clickKnownButton();
