@@ -86,7 +86,7 @@ public class EngineService extends AccessibilityService {
 
         String start = Logbook.ts();
         long t0 = System.currentTimeMillis(), tEnd = t0 + (long) (cfg.minutes * 60_000L);
-        int ok = 0, bad = 0, pausedRun = 0;
+        int ok = 0, bad = 0, pausedRun = 0, cardClicks = 0;
         Logbook.line(this, "START " + name + "  " + start + "  (playback confirmed: " + confirmed + ")");
         while (!cancel && System.currentTimeMillis() < tEnd) {
             long left = (tEnd - System.currentTimeMillis()) / 1000;
@@ -99,7 +99,8 @@ public class EngineService extends AccessibilityService {
                 launchAttempt(cfg, name, pkg, preferred(name));
             } else if (!"playing".equals(st) && clickKnownButtonLogged(name)) {
                 // dialog dismissed ("still watching?", guest prompt, cookies, retry)
-            } else if (!"playing".equals(st) && !"paused".equals(st) && name.equals("Twitch") && clickStreamCard()) {
+            } else if (!"playing".equals(st) && !"paused".equals(st) && name.equals("Twitch") && cardClicks < 2 && clickStreamCard()) {
+                cardClicks++;   // at most twice: Twitch may not report playback, avoid clicking around in the player
                 Logbook.line(this, "  [Twitch] not playing -> opened first live stream");
             } else if ("paused".equals(st)) {
                 pausedRun++;
