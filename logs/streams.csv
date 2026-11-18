@@ -1,0 +1,2 @@
+session,service,package,content,launched,start,end,duration_min,playback_confirmed,heartbeats_playing,heartbeats_not_playing
+20261118_104030,YouTube,com.google.android.youtube.tv,https://www.youtube.com/watch?v=jfKfPfyJRdk,2026-11-18 10:40:31,2026-11-18 10:41:33,2026-11-18 10:42:34,1.01,False,0,1

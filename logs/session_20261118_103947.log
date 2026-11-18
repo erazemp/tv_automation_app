@@ -1,0 +1,16 @@
+2026-11-18 10:39:47  Session 20261118_103947 - device 192.168.137.109:41234 - 1 min per service
+2026-11-18 10:39:47  ADB not connected (adb.exe : error: device '192.168.137.109:41234' not found
+At C:\Users\eraze\OneDrive\Desktop\Nlsn_tv_hck\stream_session.ps1:46 char:9
++   $s = (& $Adb -s $Device get-state 2>&1 | Out-String).Trim()
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (error: device '...1234' not found:String) [], RemoteExce 
+   ption
+    + FullyQualifiedErrorId : NativeCommandError) - reconnecting to 192.168.137.109:41234
+2026-11-18 10:39:53  WARNING: still not connected (adb.exe : error: device '192.168.137.109:41234' not found
+At C:\Users\eraze\OneDrive\Desktop\Nlsn_tv_hck\stream_session.ps1:51 char:9
++   $s = (& $Adb -s $Device get-state 2>&1 | Out-String).Trim()
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (error: device '...1234' not found:String) [], RemoteExce 
+   ption
+    + FullyQualifiedErrorId : NativeCommandError). If the TV rebooted/changed network, the port changed.
+2026-11-18 10:39:53  Cannot reach TV. Check the port on the Wireless debugging screen.

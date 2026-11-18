@@ -1,0 +1,21 @@
+2026-11-18 10:40:31  Session 20261118_104030 - device 192.168.137.109:42099 - 1 min per service
+2026-11-18 10:40:31  TV: BRAVIA 4K AE2, Android 14
+2026-11-18 10:40:31  Packages: YouTube=com.google.android.youtube.tv  Twitch=tv.twitch.android.app  Netflix=com.netflix.ninja
+2026-11-18 10:40:31  === YouTube (com.google.android.youtube.tv) launching: https://www.youtube.com/watch?v=jfKfPfyJRdk
+2026-11-18 10:40:44    [YouTube] startup check 1: foreground=com.google.android.youtube.tv playback=none
+2026-11-18 10:40:56    [YouTube] startup check 2: foreground=com.google.android.youtube.tv playback=none
+2026-11-18 10:41:09    [YouTube] startup check 3: foreground=com.google.android.youtube.tv playback=none
+2026-11-18 10:41:21    [YouTube] startup check 4: foreground=com.google.android.youtube.tv playback=none
+2026-11-18 10:41:33    [YouTube] startup check 5: foreground=com.google.android.youtube.tv playback=none
+2026-11-18 10:41:33  START YouTube  2026-11-18 10:41:33  (playback confirmed: False)
+2026-11-18 10:42:34    [YouTube] heartbeat: foreground=com.google.android.youtube.tv playback=none
+2026-11-18 10:42:34  END   YouTube  2026-11-18 10:42:34  (1.01 min, heartbeats playing=0 not=1)
+2026-11-18 10:42:34  === Twitch (tv.twitch.android.app) launching: featured stream
+2026-11-18 10:42:47    [Twitch] startup check 1: foreground=tv.twitch.android.app playback=none
+2026-11-18 10:43:00    [Twitch] startup check 2: foreground=tv.twitch.android.app playback=none
+2026-11-18 10:43:12    [Twitch] startup check 3: foreground=tv.twitch.android.app playback=none
+2026-11-18 10:43:25    [Twitch] startup check 4: foreground=tv.twitch.android.app playback=none
+2026-11-18 10:43:37    [Twitch] startup check 5: foreground=tv.twitch.android.app playback=none
+2026-11-18 10:43:37  START Twitch  2026-11-18 10:43:37  (playback confirmed: False)
+2026-11-18 10:43:41  Back to home screen. Session finished.
+2026-11-18 10:43:41  Logs: C:\Users\eraze\OneDrive\Desktop\Nlsn_tv_hck\logs\session_20261118_104030.log  |  C:\Users\eraze\OneDrive\Desktop\Nlsn_tv_hck\logs\streams.csv
