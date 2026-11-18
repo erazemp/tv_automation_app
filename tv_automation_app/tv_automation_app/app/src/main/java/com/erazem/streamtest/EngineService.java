@@ -97,6 +97,8 @@ public class EngineService extends AccessibilityService {
             if (!fg.equals(pkg) && !fg.equals("unknown") && !fg.equals("com.android.systemui")) {
                 Logbook.line(this, "  [" + name + "] app left foreground -> relaunching");
                 launchAttempt(cfg, name, pkg, preferred(name));
+            } else if (!"playing".equals(st) && clickKnownButtonLogged(name)) {
+                // dialog dismissed ("still watching?", guest prompt, retry)
             } else if ("paused".equals(st)) {
                 pausedRun++;
                 if (pausedRun == 1) play(pkg); else clickFocused();   // 2nd time: dismiss "still watching?"
@@ -171,7 +173,13 @@ public class EngineService extends AccessibilityService {
                     Logbook.line(this, "  [" + name + "] playing with attempt " + (idx + 1));
                     return true;
                 }
-                if ("paused".equals(st)) play(pkg);
+                String clicked = clickKnownButton();
+                if (clicked != null) {
+                    Logbook.line(this, "  [" + name + "] pressed '" + clicked + "'");
+                    if (clicked.contains("guest") || clicked.contains("try again") || clicked.contains("retry")) {
+                        sleep(4); launchAttempt(cfg, name, pkg, idx);       // guest/retry often lands on home: reopen video
+                    }
+                } else if ("paused".equals(st)) play(pkg);
                 else if (!name.equals("YouTube")) clickFocused();   // profile picker / featured tile
             }
             Logbook.line(this, "  [" + name + "] attempt " + (idx + 1) + " not playing. Screen: " + screenText());
@@ -221,6 +229,50 @@ public class EngineService extends AccessibilityService {
     }
     private void killBg(String pkg) {
         try { ((ActivityManager) getSystemService(ACTIVITY_SERVICE)).killBackgroundProcesses(pkg); } catch (Exception ignored) { }
+    }
+    /** Buttons we are happy to press when playback is blocked (lower-case, in priority order). */
+    private static final String[] BUTTONS = {
+        "watch as guest", "continue as guest", "use as guest", "guest",
+        "continue watching", "keep watching", "i'm still watching", "yes",
+        "try again", "retry", "skip", "not now", "no thanks", "dismiss", "close", "ok"
+    };
+    /** Clicks the first visible button whose text matches BUTTONS; returns the label or null. */
+    private String clickKnownButton() {
+        AccessibilityNodeInfo root;
+        try { root = getRootInActiveWindow(); } catch (Exception e) { return null; }
+        if (root == null) return null;
+        java.util.List<AccessibilityNodeInfo> nodes = new java.util.ArrayList<>();
+        flatten(root, nodes, 0);
+        for (String b : BUTTONS) {
+            for (AccessibilityNodeInfo n : nodes) {
+                String t = label(n);
+                if (t.isEmpty()) continue;
+                boolean match = t.equals(b) || (b.length() >= 5 && t.contains(b) && t.length() <= b.length() + 25);
+                if (!match) continue;
+                AccessibilityNodeInfo c = n;
+                while (c != null && !c.isClickable()) c = c.getParent();
+                if (c != null && c.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return b;
+                if (n.performAction(AccessibilityNodeInfo.ACTION_FOCUS)) {   // TV: focus, then press OK
+                    clickFocused(); return b;
+                }
+            }
+        }
+        return null;
+    }
+    private boolean clickKnownButtonLogged(String name) {
+        String b = clickKnownButton();
+        if (b != null) Logbook.line(this, "  [" + name + "] pressed '" + b + "'");
+        return b != null;
+    }
+    private static String label(AccessibilityNodeInfo n) {
+        CharSequence t = n.getText();
+        if (t == null || t.length() == 0) t = n.getContentDescription();
+        return t == null ? "" : t.toString().trim().toLowerCase(java.util.Locale.ROOT);
+    }
+    private void flatten(AccessibilityNodeInfo n, java.util.List<AccessibilityNodeInfo> out, int depth) {
+        if (n == null || depth > 30 || out.size() > 600) return;
+        out.add(n);
+        for (int i = 0; i < n.getChildCount(); i++) flatten(n.getChild(i), out, depth + 1);
     }
     /** Visible text on screen (for diagnosing error dialogs). */
     private String screenText() {
