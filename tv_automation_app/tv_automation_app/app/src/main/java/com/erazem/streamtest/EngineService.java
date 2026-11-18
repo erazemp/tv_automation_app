@@ -70,6 +70,7 @@ public class EngineService extends AccessibilityService {
 
     private void runService(String sid, Config cfg, String name, String pkg, String content) {
         current = name;
+        lastTwitchChannel = null;
         if (pkg == null) {
             Logbook.line(this, "SKIP " + name + " - app not installed");
             Logbook.csv(this, sid + "," + name + ",," + content + ",,,,0,false,0,0");
@@ -99,9 +100,8 @@ public class EngineService extends AccessibilityService {
                 launchAttempt(cfg, name, pkg, preferred(name));
             } else if (!"playing".equals(st) && clickKnownButtonLogged(name)) {
                 // dialog dismissed ("still watching?", guest prompt, cookies, retry)
-            } else if (!"playing".equals(st) && !"paused".equals(st) && name.equals("Twitch") && cardClicks < 2 && clickStreamCard()) {
-                cardClicks++;   // at most twice: Twitch may not report playback, avoid clicking around in the player
-                Logbook.line(this, "  [Twitch] not playing -> opened first live stream");
+            } else if (!"playing".equals(st) && !"paused".equals(st) && name.equals("Twitch") && cardClicks < 3 && openTwitchFeatured(pkg)) {
+                cardClicks++;
             } else if ("paused".equals(st)) {
                 pausedRun++;
                 if (pausedRun == 1) play(pkg); else clickFocused();   // 2nd time: dismiss "still watching?"
@@ -183,7 +183,7 @@ public class EngineService extends AccessibilityService {
                         sleep(4); launchAttempt(cfg, name, pkg, idx);       // guest/retry often lands on home: reopen video
                     }
                 } else if ("paused".equals(st)) play(pkg);
-                else if (name.equals("Twitch") && clickStreamCard()) Logbook.line(this, "  [Twitch] opened first live stream");
+                else if (name.equals("Twitch") && openTwitchFeatured(pkg)) { /* logged inside */ }
                 else if (!name.equals("YouTube")) clickFocused();   // profile picker / featured tile
             }
             Logbook.line(this, "  [" + name + "] attempt " + (idx + 1) + " not playing. Screen: " + screenText());
@@ -264,23 +264,51 @@ public class EngineService extends AccessibilityService {
         }
         return null;
     }
-    /** Twitch home: click the first tile that looks like a live stream (shows viewers / LIVE). */
+    private String lastTwitchChannel = null;
+    /** Twitch home: read "<channel> playing" from the featured banner and deep-link to it; else press the LIVE tile. */
+    private boolean openTwitchFeatured(String pkg) {
+        String all = fullScreenText();
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("([A-Za-z0-9_]{3,25}) playing").matcher(all);
+        while (m.find()) {
+            String ch = m.group(1).toLowerCase(java.util.Locale.ROOT);
+            if (ch.equals(lastTwitchChannel) || java.util.Arrays.asList("now", "currently", "was", "are", "also", "game", "and").contains(ch)) continue;
+            lastTwitchChannel = ch;
+            Logbook.line(this, "  [Twitch] featured channel '" + ch + "' -> opening it");
+            try { startActivity(view("https://www.twitch.tv/" + ch, pkg)); return true; }
+            catch (Exception e) { Logbook.line(this, "  [Twitch] open failed: " + e.getMessage()); }
+        }
+        if (clickStreamCard()) { Logbook.line(this, "  [Twitch] pressed featured/live tile"); return true; }
+        return false;
+    }
+    /** Press the node showing LIVE / viewers / playing (or an ancestor of it). Never "sign in". */
     private boolean clickStreamCard() {
         AccessibilityNodeInfo root;
         try { root = getRootInActiveWindow(); } catch (Exception e) { return false; }
         if (root == null) return false;
         java.util.List<AccessibilityNodeInfo> nodes = new java.util.ArrayList<>();
         flatten(root, nodes, 0);
-        for (String key : new String[]{"viewer", "live"}) {
+        for (String key : new String[]{"live now", "viewer", " playing", "live"}) {
             for (AccessibilityNodeInfo n : nodes) {
-                if (!n.isClickable()) continue;
-                String t = subtreeText(n, 0).toLowerCase(java.util.Locale.ROOT);
-                if (!t.contains(key) || t.length() > 300) continue;
-                if (n.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true;
-                if (n.performAction(AccessibilityNodeInfo.ACTION_FOCUS)) { clickFocused(); return true; }
+                String t = label(n);
+                if (!t.contains(key) || t.contains("sign in")) continue;
+                AccessibilityNodeInfo c = n;
+                for (int up = 0; up < 6 && c != null; up++, c = c.getParent()) {
+                    if (label(c).contains("sign in")) break;
+                    if (c.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true;
+                }
             }
         }
         return false;
+    }
+    private String fullScreenText() {
+        StringBuilder sb = new StringBuilder();
+        java.util.List<AccessibilityNodeInfo> nodes = new java.util.ArrayList<>();
+        try { flatten(getRootInActiveWindow(), nodes, 0); } catch (Exception ignored) { }
+        for (AccessibilityNodeInfo n : nodes) {
+            CharSequence t = n.getText(); if (t == null || t.length() == 0) t = n.getContentDescription();
+            if (t != null && t.length() > 0) sb.append(t).append(" | ");
+        }
+        return sb.toString();
     }
     private String subtreeText(AccessibilityNodeInfo n, int depth) {
         if (n == null || depth > 8) return "";
@@ -328,7 +356,7 @@ public class EngineService extends AccessibilityService {
             AccessibilityNodeInfo n = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
             if (n == null) n = root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY);
             while (n != null && !n.isClickable()) n = n.getParent();
-            if (n != null) n.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+            if (n != null && !label(n).contains("sign in")) n.performAction(AccessibilityNodeInfo.ACTION_CLICK);
         } catch (Exception ignored) { }
     }
 
@@ -354,6 +382,7 @@ public class EngineService extends AccessibilityService {
         PlaybackState s = c.getPlaybackState();
         if (s == null) return "none";
         switch (s.getState()) {
+            case PlaybackState.STATE_NONE: return "none";
             case PlaybackState.STATE_PLAYING: return "playing";
             case PlaybackState.STATE_PAUSED: return "paused";
             case PlaybackState.STATE_BUFFERING: return "buffering";
